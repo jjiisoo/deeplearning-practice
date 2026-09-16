@@ -196,11 +196,36 @@ print(
 #             (3) 정답이 새어 들어온 것이다.
 # TODO
 
+누수특징이름 = 특징이름 + ["CUR-MTR_STD"]
+
+X_leak = d[누수특징이름].values.astype(float)
+
+X_leak_train = X_leak[tr]
+X_leak_test = X_leak[te]
+
+mu_leak = X_leak_train.mean(axis=0)
+sd_leak = X_leak_train.std(axis=0)
+
+Z_leak_train = (X_leak_train - mu_leak) / sd_leak
+Z_leak_test = (X_leak_test - mu_leak) / sd_leak
+
+w_leak, b_leak = 학습(
+    Z_leak_train,
+    y_train,
+    lr=0.1,
+    epochs=500,
+)
+
+tr_pred_leak = 예측(Z_leak_train, w_leak, b_leak)
+te_pred_leak = 예측(Z_leak_test, w_leak, b_leak)
+
 print(
-    f"    학습용(train)  R² {R2(y_train, tr_pred):.4f}   손실 {MSE(y_train, tr_pred):.3f}"
+    f"    학습용(train)  R² {R2(y_train, tr_pred_leak):.4f}   "
+    f"손실 {MSE(y_train, tr_pred_leak):.3f}"
 )
 print(
-    f"    시험용(test)   R² {R2(y_test, te_pred):.4f}   손실 {MSE(y_test, te_pred):.3f}"
+    f"    시험용(test)   R² {R2(y_test, te_pred_leak):.4f}   "
+    f"손실 {MSE(y_test, te_pred_leak):.3f}"
 )
 # =====================================================================
 # E. 함정 2 — 상관 순위와 실제 쓸모는 다르다
@@ -212,8 +237,31 @@ print(
 #        A3 에서 본 상관을 보면 VIB-BOT_RMS 가 0.74 로 1등,
 #        VIB-TOP_RMS 는 0.09 로 사실상 무관해 보입니다.
 #        그럼 VIB-TOP_RMS 를 빼도 점수가 안 변하겠죠?
-#      내 예상:
+#      내 예상: 상관이 낮아 점수가 거의 변하지 않을 것 같다.
 # TODO
+total_test_r2 = R2(y_test, te_pred)
+
+for num, name in enumerate(특징이름):
+    남길 = [i for i in range(len(특징이름)) if i != num]
+
+    Ztr = Z_train[:, 남길]
+    Zte = Z_test[:, 남길]
+
+    w_temp, b_temp = 학습(
+        Ztr,
+        y_train,
+        lr=0.1,
+        epochs=500,
+    )
+
+    pred_train = 예측(Ztr, w_temp, b_temp)
+    pred_test = 예측(Zte, w_temp, b_temp)
+
+    print(
+        f"    {name:12s} 제거 | "
+        f"train R² {R2(y_train, pred_train):.4f} | "
+        f"test R² {R2(y_test, pred_test):.4f}"
+    )
 
 
 # [E2] 실행 결과를 보고 답하세요.
@@ -223,9 +271,9 @@ print(
 #                                 VIB-BOT_RMS 와 VIB-BOT_PTP 의 상관은?
 #        (3) VIB-TOP_RMS 를 뺐을 때는요? 정답과 상관이 0.09 밖에 안 되는데 왜?
 #        (4) 여기서 얻을 교훈을 한 줄로 적으세요.
-#      내 답:
+#      내 답: 예상과 다르다,  0.953446의 상관관계를 가진다. test R² 0.9976, test R² 0.9982, 정답과의 상관계수만 보고 특징을 뺄지 판단하면 안된다.
 # TODO
-
+print(d[특징이름].corr())
 
 # =====================================================================
 # F. 함정 3 — 섞어서 자른 게 정말 옳았나
@@ -240,9 +288,43 @@ print(
 #        (2) 결과가 예상과 다를 겁니다. 그래도 실무에서 예측 모델을 만들 때는
 #            보통 이 '시간순 분할' 쪽을 씁니다. 왜 그럴까요?
 #            힌트: 현장에 배포된 모델이 맞혀야 하는 데이터는 '언제' 것입니까?
-#      내 답: (1)
-#             (2)
+#      내 답: (1) 높다.
+#             (2) 미래 데이터를 예측해야한다, 과거 데이터로 학습하고 미래 데이터를 판단해야하기 때문이다.
 # TODO
+n_train = 399
+
+X_train = X[:n_train]
+X_test = X[n_train:]
+
+y_train = y[:n_train]
+y_test = y[n_train:]
+
+mu = X_train.mean(axis=0)
+sd = X_train.std(axis=0)
+
+Z_rain = (X_train - mu) / sd
+Z_test = (X_test - mu) / sd
+
+w_time, b_time = 학습(
+    Z_train,
+    y_train,
+    lr=0.1,
+    epochs=500,
+)
+
+train_pred = 예측(Z_train, w_time, b_time)
+test_pred = 예측(Z_test, w_time, b_time)
+
+random_test_r2 = R2(y_test, te_pred)
+test_r2 = R2(y_test, test_pred)
+
+print(
+    f"    학습용(train) R² {R2(y_train, train_pred):.4f}   "
+    f"손실 {MSE(y_train, train_pred):.3f}"
+)
+print(f"    시험용(test)  R² {test_r2:.4f}   손실 {MSE(y_test, test_pred):.3f}")
+print(f"    무작위 분할 test R²: {random_test_r2:.4f}")
+print(f"    시간순 분할 test R²: {test_r2:.4f}")
 
 
 # =====================================================================
@@ -256,9 +338,44 @@ print(
 #            힌트: R2 = 0 이 '무조건 평균만 대답하는 모델' 입니다.
 #        (2) 데이터가 늘 때 학습용 점수와 시험용 점수는 각각 어느 방향으로 움직입니까?
 #        (3) 이 설비에서 쓸 만한 모델을 만들려면 최소 몇 건쯤 필요해 보입니까?
-#      내 답:
+#      내 답: 음수는 성능이 많이 나쁘다는 뜻이다. 평균만 예측하는 모델보다도 더 떨어진 성능
+#           데이터가 늘어나면 학습용 r2와 시험용 r2의 차이가 줄어든다
+#           100건 이상
 # TODO
+train_data = [5, 10, 30, 100, 399]
 
+X_test = X[399:]
+y_test = y[399:]
+
+
+for n in train_data:
+    X = X[:n]
+    y = y[:n]
+
+    mu = X.mean(axis=0)
+    sd = X.std(axis=0)
+
+    sd[sd == 0] = 1
+
+    Z_small_train = (X - mu) / sd
+    Z_small_test = (X_test - mu) / sd
+
+    epochs = 2000 if n <= 30 else 500
+
+    w_small, b_small = 학습(
+        Z_small_train,
+        y,
+        lr=0.1,
+        epochs=epochs,
+    )
+
+    small_train_pred = 예측(Z_small_train, w_small, b_small)
+    small_test_pred = 예측(Z_small_test, w_small, b_small)
+
+    train_score = R2(y, small_train_pred)
+    test_score = R2(y_test, small_test_pred)
+
+    print(f"{n:9d} | {train_score:8.4f} | {test_score:7.4f}")
 
 # =====================================================================
 # H. 마무리 — 보고서 3줄
@@ -266,10 +383,10 @@ print(
 # 팀장에게 보고한다고 치고, 아래 세 줄을 채우세요.
 #
 #   1) 전류계가 고장 났을 때 진동으로 전류를 추정할 수 있는가? (된다/안 된다/조건부)
-#      근거 점수:
+#      근거 점수: 조건부, 시간순 분할에서 출력된 시험용 R2, MSE
 #
-#   2) 이 모델을 쓸 때 반드시 붙여야 할 경고 문구 한 줄:
+#   2) 이 모델을 쓸 때 반드시 붙여야 할 경고 문구 한 줄: 전류계에서 만들어지는 값을 입력으로 사용하면 안된다.
 #
-#   3) 점수를 더 올리려면 다음에 뭘 해 보겠는가? (한 가지만, 이유와 함께)
+#   3) 점수를 더 올리려면 다음에 뭘 해 보겠는가? (한 가지만, 이유와 함께) : 다른 조건의 데이터들을 더 수집한다. 일반화 성능을 높이기 위해 계절 같이 시간순 평가에 도움되는 데이터를 추가로 수집해 성능을 높이기 위해서다.
 #
 # =====================================================================
