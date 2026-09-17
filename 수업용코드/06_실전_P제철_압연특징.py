@@ -40,7 +40,9 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import classification_report, recall_score, precision_score
 # 04 에서 배운 도구를 한 번에 꺼냅니다. 실전에선 손코드 대신 이걸 씁니다 — 표 데이터 + 선형모델이니까.
 
-DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "수업용데이터")   # data/수업용데이터/
+DATA = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "수업용데이터"
+)  # data/수업용데이터/
 
 
 # =====================================================================
@@ -58,25 +60,35 @@ print("    열:", list(r.columns))
 #   3 채널 × 5 통계 = 15열 + 시각·번호·표본수·길이 = 19열.
 # 즉 "3.4초 파형을 숫자 5개로 요약한 것"이 한 행. 파형 원본이 아니라 요약값이라 표 데이터 → 사이킷런 영역.
 
-r["시각"] = pd.to_datetime(r["MEAS_DT"])          # ★ 문법 ★ pd.to_datetime = 문자열 "2024-01-10 00:00:00" 을 '시각 타입'으로. 이래야 날짜 계산이 됩니다
+r["시각"] = pd.to_datetime(
+    r["MEAS_DT"]
+)  # ★ 문법 ★ pd.to_datetime = 문자열 "2024-01-10 00:00:00" 을 '시각 타입'으로. 이래야 날짜 계산이 됩니다
 print("    기간:", r["시각"].min(), "~", r["시각"].max())
 
 # 데이터사전의 경고: "341일 중 약 25일이 비어 있고 최장 7일 연속. 0 으로 채우지 말 것"  → 직접 세어 봅니다
-날짜 = r["시각"].dt.normalize().drop_duplicates()           # ★ 문법 ★ .dt.normalize() = 시각에서 시·분·초를 떼고 날짜만. drop_duplicates = 같은 날은 하나로
-전체일 = pd.date_range(날짜.min(), 날짜.max())               # 첫날~마지막날 사이의 모든 날짜
-빈날 = 전체일.difference(날짜)                               # 전체 날짜 − 데이터 있는 날짜 = 빈 날
+날짜 = (
+    r["시각"].dt.normalize().drop_duplicates()
+)  # ★ 문법 ★ .dt.normalize() = 시각에서 시·분·초를 떼고 날짜만. drop_duplicates = 같은 날은 하나로
+전체일 = pd.date_range(날짜.min(), 날짜.max())  # 첫날~마지막날 사이의 모든 날짜
+빈날 = 전체일.difference(날짜)  # 전체 날짜 − 데이터 있는 날짜 = 빈 날
 print("    데이터가 있는 날:", len(날짜), "일 / 빈 날:", len(빈날), "일")
 # 사전엔 25일이라 적혀 있고 여기선 27일 — 첫날·마지막 날을 포함하느냐 등 세는 기준 차이입니다.
 # 중요한 건 숫자가 아니라 태도: 빈 날은 "설비가 섰거나 수집이 안 된 날"이지 값이 0 인 날이 아닙니다.
 # 0 으로 채우면 모델이 "진동 0 인 날이 27일 있었다"고 배웁니다 (00 §5 의 결측 원칙). 우린 빈 날은 그냥 없는 채로 둡니다.
 
 # ★ 함정 ★ "빈 날은 0으로 채우면 되지 않나요?" — 실제로 채워 보고 무슨 일이 생기는지 봅니다.
-일별 = r.set_index("시각")["VIB-BOT_RMS"].resample("D").mean()      # ★ 문법 ★ resample("D") = 하루 단위로 묶어라. 빈 날은 NaN 이 됩니다
-채운것 = 일별.fillna(0)                                              # 빈 날을 0 으로 (하면 안 되는 그것)
+일별 = (
+    r.set_index("시각")["VIB-BOT_RMS"].resample("D").mean()
+)  # ★ 문법 ★ resample("D") = 하루 단위로 묶어라. 빈 날은 NaN 이 됩니다
+채운것 = 일별.fillna(0)  # 빈 날을 0 으로 (하면 안 되는 그것)
 print("\n[1-1] 빈 날을 0 으로 채우면 어떻게 되나")
 print(f"    빈 날 빼고 계산한 평균 진동: {일별.mean():.4f}")
-print(f"    0 으로 채우고 계산한 평균 진동: {채운것.mean():.4f}   <- {(1 - 채운것.mean() / 일별.mean()) * 100:.0f}% 낮아짐")
-print(f"    빈 날 빼고 계산한 표준편차: {일별.std():.4f}  /  0 으로 채운 표준편차: {채운것.std():.4f}")
+print(
+    f"    0 으로 채우고 계산한 평균 진동: {채운것.mean():.4f}   <- {(1 - 채운것.mean() / 일별.mean()) * 100:.0f}% 낮아짐"
+)
+print(
+    f"    빈 날 빼고 계산한 표준편차: {일별.std():.4f}  /  0 으로 채운 표준편차: {채운것.std():.4f}"
+)
 
 # +-------------------------------------------------------------------------+
 # | ^^ 여기까지 치고 한 번 실행해 보세요 -- 실전 시작                        |
@@ -142,16 +154,24 @@ print(r[RMS열].corr().round(2))
 
 # 입력 고르기 전에 전류 통계끼리의 상관을 봅니다
 print("    전류 통계끼리 상관 (RMS·PTP·STD 가 거의 1 = 중복):")
-print(r[[c for c in r.columns if c.startswith("CUR-MTR")]].corr().round(2))   # ★ 문법 ★ startswith = "이 글자로 시작하나". CUR-MTR 열만 고름
+print(
+    r[[c for c in r.columns if c.startswith("CUR-MTR")]].corr().round(2)
+)  # ★ 문법 ★ startswith = "이 글자로 시작하나". CUR-MTR 열만 고름
 # RMS·STD·PTP 는 서로 0.98 이상 = 사실상 같은 정보. 같은 정보를 세 번 넣으면 가중치가 셋으로 쪼개져 해석이 어려워집니다.
 # 대표로 RMS 만 쓰고, 성격이 다른 KUR·CRF 를 더합니다. (특징 고르기의 첫 규칙: 서로 다른 정보를 넣어라)
 전류열 = ["CUR-MTR_RMS", "CUR-MTR_KUR", "CUR-MTR_CRF"]
 X = r[전류열].values
 y = r["VIB-BOT_RMS"].values
-X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=0)   # 04 §2 그대로
+X_tr, X_te, y_tr, y_te = train_test_split(
+    X, y, test_size=0.3, random_state=0
+)  # 04 §2 그대로
 
-단일 = make_pipeline(StandardScaler(), LinearRegression()).fit(X_tr[:, [0]], y_tr)   # 전류 RMS 하나로. [:, [0]] = 0번 열만, 표 모양 유지
-다변수 = make_pipeline(StandardScaler(), LinearRegression()).fit(X_tr, y_tr)         # 전류 통계 3개로
+단일 = make_pipeline(StandardScaler(), LinearRegression()).fit(
+    X_tr[:, [0]], y_tr
+)  # 전류 RMS 하나로. [:, [0]] = 0번 열만, 표 모양 유지
+다변수 = make_pipeline(StandardScaler(), LinearRegression()).fit(
+    X_tr, y_tr
+)  # 전류 통계 3개로
 print(f"\n    전류 RMS 하나로   test R² {단일.score(X_te[:, [0]], y_te):.3f}")
 print(f"    전류 통계 3개로   test R² {다변수.score(X_te, y_te):.3f}")
 print(f"    학습용 R²         {다변수.score(X_tr, y_tr):.3f}  ← 시험용보다 낮다?")
@@ -161,8 +181,13 @@ cv = cross_val_score(make_pipeline(StandardScaler(), LinearRegression()), X, y, 
 print("    교차검증 5조각 R²:", cv.round(2), "→ 평균", round(cv.mean(), 3))
 # 조각마다 0.38 ~ 0.83. 이만큼 흔들리니 '0.788' 하나를 믿으면 안 됩니다. "전류로 하부 진동의 대략 60% 를 설명" 정도가 정직한 표현.
 # 데이터가 적을 때 점수 하나를 발표하지 말고 교차검증 범위를 같이 말하는 것 — 실전 습관.
-w = 다변수.named_steps["linearregression"].coef_          # 파이프라인 안의 모델 꺼내기: named_steps["소문자 클래스 이름"]
-print("    표준화 가중치:", {c.replace("CUR-MTR_", ""): round(float(v), 3) for c, v in zip(전류열, w)})
+w = 다변수.named_steps[
+    "linearregression"
+].coef_  # 파이프라인 안의 모델 꺼내기: named_steps["소문자 클래스 이름"]
+print(
+    "    표준화 가중치:",
+    {c.replace("CUR-MTR_", ""): round(float(v), 3) for c, v in zip(전류열, w)},
+)
 
 # +-------------------------------------------------------------------------+
 # | ^^ 여기까지 치고 실행 -- 회귀 문제 정의                                  |
@@ -225,33 +250,58 @@ print("    표준화 가중치:", {c.replace("CUR-MTR_", ""): round(float(v), 3)
 # 정답 열이 없으면 첫 번째 방법은 '도메인 규칙'으로 정답을 만드는 것입니다. 규칙과 근거를 반드시 적어 둡니다.
 #   규칙: 상부 롤 진동 RMS 가 전체의 상위 10% 이면 '고진동'(1), 아니면 정상(0)
 #   근거: 진동 관리 실무에서 흔히 쓰는 "평소 분포 대비 상위 몇 %" 경보. 10% 라는 숫자 자체는 현장과 합의해야 함.
-경계 = r["VIB-TOP_RMS"].quantile(0.90)                    # ★ 문법 ★ quantile(0.90) = 작은 순으로 90% 지점의 값. 이보다 크면 상위 10%
-r["고진동"] = (r["VIB-TOP_RMS"] > 경계).astype(int)         # True/False → 1/0. 이게 우리가 '만든' 정답 열
-print(f"\n[3] 고진동 경계 {경계:.4f} → 고진동 {r['고진동'].sum()}건 / {len(r)}건 ({r['고진동'].mean():.0%})  ← 불균형")
+경계 = r["VIB-TOP_RMS"].quantile(
+    0.90
+)  # ★ 문법 ★ quantile(0.90) = 작은 순으로 90% 지점의 값. 이보다 크면 상위 10%
+r["고진동"] = (r["VIB-TOP_RMS"] > 경계).astype(
+    int
+)  # True/False → 1/0. 이게 우리가 '만든' 정답 열
+print(
+    f"\n[3] 고진동 경계 {경계:.4f} → 고진동 {r['고진동'].sum()}건 / {len(r)}건 ({r['고진동'].mean():.0%})  ← 불균형"
+)
 # ★ 분류 ★ 문제가 됐습니다: 답이 고진동/정상 둘 중 하나. 03 에서 배운 그대로 로지스틱 회귀 + 불균형 처방.
 
 # 질문: "상부 진동 센서를 안 보고, 하부 진동 + 전류만으로 상부 고진동을 알아챌 수 있나?"
 #   ★ 중요 ★ 정답을 만든 열(VIB-TOP)을 입력에 넣으면 당연히 100% 라 의미가 없습니다. 다른 채널만 씁니다.
 #   실전에서 제일 흔한 실수가 이겁니다 — 정답이 새어 들어간 입력(누수). 점수가 이상하게 좋으면 먼저 이걸 의심하세요.
-입력열 = [c for c in r.columns if c.startswith("VIB-BOT") or c.startswith("CUR-MTR")]   # 하부 진동 5개 + 전류 5개 = 10열
+입력열 = [
+    c for c in r.columns if c.startswith("VIB-BOT") or c.startswith("CUR-MTR")
+]  # 하부 진동 5개 + 전류 5개 = 10열
 Xc = r[입력열].values
 yc = r["고진동"].values
-Xc_tr, Xc_te, yc_tr, yc_te = train_test_split(Xc, yc, test_size=0.3, random_state=0, stratify=yc)   # stratify: 고진동 비율 유지 (04 §4)
+Xc_tr, Xc_te, yc_tr, yc_te = train_test_split(
+    Xc, yc, test_size=0.3, random_state=0, stratify=yc
+)  # stratify: 고진동 비율 유지 (04 §4)
 
-clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced"))
+clf = make_pipeline(
+    StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")
+)
 #   class_weight="balanced": 고진동이 10% 뿐이라 놓치지 않는 쪽으로 무게를 둠 (04 §5 처방 ②). 진동 경보는 놓침이 헛경보보다 비쌈
 clf.fit(Xc_tr, yc_tr)
-p = clf.predict_proba(Xc_te)[:, 1]                       # 고진동일 확률
-print(classification_report(yc_te, clf.predict(Xc_te), target_names=["정상", "고진동"], zero_division=0))
+p = clf.predict_proba(Xc_te)[:, 1]  # 고진동일 확률
+print(
+    classification_report(
+        yc_te, clf.predict(Xc_te), target_names=["정상", "고진동"], zero_division=0
+    )
+)
 # 읽는 법 (04 §5): '고진동' 행의 recall 0.76 = 실제 고진동 17건 중 13건을 잡음. precision 0.26 = 고진동이라 한 것 중 1/4 이 진짜.
 print("    임계값을 바꾸면 (재현율 ↔ 정밀도 맞바꿈)")
 for th in [0.5, 0.3, 0.7]:
     판정 = (p >= th).astype(int)
-    print(f"      {th}: 재현율 {recall_score(yc_te, 판정):.2f}  정밀도 {precision_score(yc_te, 판정, zero_division=0):.2f}")
+    print(
+        f"      {th}: 재현율 {recall_score(yc_te, 판정):.2f}  정밀도 {precision_score(yc_te, 판정, zero_division=0):.2f}"
+    )
 # 03 §8 과 같은 시소. 어디에 둘지는 "헛경보 한 번의 비용 vs 고진동 놓침의 비용"으로 현장이 정합니다.
-w = clf.named_steps["logisticregression"].coef_[0]        # [0] = 첫 행 (이진 분류는 가중치가 1행 10열)
-상위 = sorted(zip(입력열, w), key=lambda t: -abs(t[1]))[:4]   # 절댓값 큰 순 상위 4개 (02 §6)
-print("    단서가 된 입력 (표준화 가중치 큰 순):", [(c, round(float(v), 2)) for c, v in 상위])
+w = clf.named_steps["logisticregression"].coef_[
+    0
+]  # [0] = 첫 행 (이진 분류는 가중치가 1행 10열)
+상위 = sorted(zip(입력열, w), key=lambda t: -abs(t[1]))[
+    :4
+]  # 절댓값 큰 순 상위 4개 (02 §6)
+print(
+    "    단서가 된 입력 (표준화 가중치 큰 순):",
+    [(c, round(float(v), 2)) for c, v in 상위],
+)
 
 # +-------------------------------------------------------------------------+
 # | ^^ 여기까지 치고 실행 -- 정답을 직접 만들어 보기                         |
@@ -302,33 +352,57 @@ print("    단서가 된 입력 (표준화 가중치 큰 순):", [(c, round(floa
 # 두 번째 방법: 다른 대장(정비이력)에서 정답을 가져옵니다. "고장 정비가 일어나기 3일 전의 버스트 = 위험(1)".
 # 근거: 고장 직전엔 진동 특징이 변할 것이라는 예지보전의 기본 가정. 정말 그런지는 데이터가 답합니다.
 m = pd.read_csv(os.path.join(DATA, "G-02_정비이력.csv"), encoding="utf-8-sig")
-m = m[m["EQP_TAG"] == "P1-CR1-SPM01"].copy()               # 이 설비 것만. 진동 파일명의 설비 코드(T-CR1-SPM01)와 정비대장의 EQP_TAG 로 잇습니다. .copy() = 경고 방지
-m["감지시각"] = pd.to_datetime(m["DETC_DT"])                # DETC_DT = 이상을 '감지'한 시각
+m = m[
+    m["EQP_TAG"] == "P1-CR1-SPM01"
+].copy()  # 이 설비 것만. 진동 파일명의 설비 코드(T-CR1-SPM01)와 정비대장의 EQP_TAG 로 잇습니다. .copy() = 경고 방지
+m["감지시각"] = pd.to_datetime(m["DETC_DT"])  # DETC_DT = 이상을 '감지'한 시각
 # MNT_TYPE (정비 종류): TBM = 시간 기준 정기점검 (고장 아님) / BM = 고장 후 수리 / CBM = 상태 보고 미리 수리 (이상 징후 있었음)
-고장정비 = m[m["MNT_TYPE"] != "TBM"].sort_values("감지시각")  # TBM 은 달력대로 하는 점검이라 진동과 무관 → 제외. != 는 "같지 않다"
+고장정비 = m[m["MNT_TYPE"] != "TBM"].sort_values(
+    "감지시각"
+)  # TBM 은 달력대로 하는 점검이라 진동과 무관 → 제외. != 는 "같지 않다"
 print(f"\n[4] 이 설비의 정비 {len(m)}건 중 고장성 정비(BM·CBM) {len(고장정비)}건")
 
-감지 = 고장정비["감지시각"].values                            # 고장 감지 시각 22개 (numpy 시각 배열)
-def 다음고장까지_일수(t):                                    # 버스트 시각 t 를 받아 "다음 고장 감지까지 며칠 남았나"
-    이후 = 감지[감지 >= np.datetime64(t)]                    # t 이후의 고장 감지 시각들
-    return (이후[0] - np.datetime64(t)) / np.timedelta64(1, "D") if len(이후) else np.nan   # 가장 가까운 것까지의 일수. 없으면 NaN
+감지 = 고장정비["감지시각"].values  # 고장 감지 시각 22개 (numpy 시각 배열)
+
+
+def 다음고장까지_일수(t):  # 버스트 시각 t 를 받아 "다음 고장 감지까지 며칠 남았나"
+    이후 = 감지[감지 >= np.datetime64(t)]  # t 이후의 고장 감지 시각들
+    return (
+        (이후[0] - np.datetime64(t)) / np.timedelta64(1, "D") if len(이후) else np.nan
+    )  # 가장 가까운 것까지의 일수. 없으면 NaN
     # ★ 문법 ★ 시각 − 시각 = 기간. np.timedelta64(1, "D") 로 나누면 '일' 단위 숫자가 됩니다
-r["다음고장까지"] = r["시각"].apply(다음고장까지_일수)         # ★ 문법 ★ .apply(함수) = 열의 값 하나하나에 함수를 적용해 새 열 만들기
-r["위험"] = (r["다음고장까지"] <= 3).astype(int)              # 3일 이내면 위험(1). 이게 두 번째 '만든' 정답
+
+
+r["다음고장까지"] = r["시각"].apply(
+    다음고장까지_일수
+)  # ★ 문법 ★ .apply(함수) = 열의 값 하나하나에 함수를 적용해 새 열 만들기
+r["위험"] = (r["다음고장까지"] <= 3).astype(
+    int
+)  # 3일 이내면 위험(1). 이게 두 번째 '만든' 정답
 print(f"    '고장 3일 전' 라벨: 위험 {r['위험'].sum()}건 / {len(r)}건")
 
 # 가설 검증부터 (모델 돌리기 전에!): 위험 구간과 평소의 진동 특징이 다르긴 한가?
 print("    위험 vs 평소 — 채널별 RMS 평균")
-print(r.groupby("위험")[RMS열].mean().round(4))              # ★ 문법 ★ groupby("위험") = 위험 0 / 1 로 묶어서 각각 평균
+print(
+    r.groupby("위험")[RMS열].mean().round(4)
+)  # ★ 문법 ★ groupby("위험") = 위험 0 / 1 로 묶어서 각각 평균
 # … 거의 같습니다 (0.0771 vs 0.0792). 03 §1 에선 고장/정상의 공구마모가 두 배 차이(113 vs 224)였죠. 여기선 차이가 없어요.
 # 특징이 안 갈리면 어떤 모델도 못 맞힙니다. 그래도 돌려서 숫자로 확인:
-Xd = r[[c for c in r.columns if c.startswith(("VIB-", "CUR-"))]].values   # startswith(("a", "b")) = 둘 중 하나로 시작. 15개 특징 전부
+Xd = r[
+    [c for c in r.columns if c.startswith(("VIB-", "CUR-"))]
+].values  # startswith(("a", "b")) = 둘 중 하나로 시작. 15개 특징 전부
 yd = r["위험"].values
-Xd_tr, Xd_te, yd_tr, yd_te = train_test_split(Xd, yd, test_size=0.3, random_state=0, stratify=yd)
-clf2 = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")).fit(Xd_tr, yd_tr)
+Xd_tr, Xd_te, yd_tr, yd_te = train_test_split(
+    Xd, yd, test_size=0.3, random_state=0, stratify=yd
+)
+clf2 = make_pipeline(
+    StandardScaler(), LogisticRegression(max_iter=1000, class_weight="balanced")
+).fit(Xd_tr, yd_tr)
 판정 = clf2.predict(Xd_te)
-print(f"    test 재현율 {recall_score(yd_te, 판정):.2f} / 정밀도 {precision_score(yd_te, 판정, zero_division=0):.2f}"
-      f"   (아무거나 '위험'이라 찍었을 때의 정밀도 = 위험 비율 {yd_te.mean():.2f})")
+print(
+    f"    test 재현율 {recall_score(yd_te, 판정):.2f} / 정밀도 {precision_score(yd_te, 판정, zero_division=0):.2f}"
+    f"   (아무거나 '위험'이라 찍었을 때의 정밀도 = 위험 비율 {yd_te.mean():.2f})"
+)
 print("""
     정직한 결론: 정밀도 0.19 는 '찍기'(0.16) 수준 → 이 특징들로는 '고장 3일 전'을 못 알아봅니다. 실패가 아니라 발견입니다.
     (재현율 0.59 가 높아 보이지만, balanced 로 학습해 '위험'을 남발한 결과라 정밀도와 같이 봐야 합니다 — 03 §7.)

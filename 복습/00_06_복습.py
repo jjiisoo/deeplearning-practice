@@ -176,3 +176,46 @@ X_train, X_test = X[tr], X[te]
 y_train, y_test = y[tr], y[te]
 
 print(len(tr), len(te))
+
+
+# 나머지는 비슷
+
+# =====================================================================
+#  03_분류 복습
+# =====================================================================
+
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+
+def h(Z, w, b):
+    return sigmoid(Z @ w + b)
+
+
+Z_train = (X_train - m) / s
+Z_test = (X_test - m) / s
+p_test = h(Z_test, w, b)  # 시험용 60대의 고장 확률
+predict = (p_test >= 0.5).astype(int)
+print("\n[6] 시험용 60대 중 확률이 높은 순 8대")
+rank = np.argsort(-p_test)
+print("    고장확률  predict  실제")
+for i in rank[:8]:
+    print(f"    {p_test[i]:.3f}     {predict[i]}     {int(y_test[i])}")
+
+정확도 = np.mean(predict == y_test)
+print(f"\n    정확도: {정확도:.3f}")
+
+
+def cm(y, predict):
+    TP = int(((y == 1) & (predict == 1)).sum())
+    FN = int(((y == 1) & (predict == 0)).sum())
+    FP = int(((y == 0) & (predict == 1)).sum())
+    TN = int(((y == 0) & (predict == 0)).sum())
+    return TP, FN, FP, TN
+
+
+TP, FN, FP, TN = cm(y_test, predict)
+recall = TP / (TP + FN) if TP + FN else 0
+precision = TP / (TP + FP) if TP + FP else 0
+print(f"    재현율 {recall:.2f}  정밀도 {precision:.2f}")
